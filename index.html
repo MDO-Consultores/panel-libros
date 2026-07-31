@@ -1046,12 +1046,22 @@ window.__initPanel = function (DATOS) {
       puedeEscribir = !!(repo && repo.permissions && repo.permissions.push);
       if (puedeEscribir) ponerLapices();
     });
-    // nombre del usuario para "Modificado por"
-    fetch("https://api.github.com/user", {
-      headers: { Authorization: "Bearer " + sesion.token,
-                 Accept: "application/vnd.github+json" }
-    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
-      if (u) sesion.nombre = (u.name || u.login || "").replace(/,/g, " ").trim();
+    // Nombre para "Modificado por". La tabla del repo (herramientas/nombres.json)
+    // es la fuente de verdad: traduce usuario o mail a nombre de persona, igual
+    // que hace el generador del panel. Sin eso quedaria el usuario de GitHub,
+    // porque muchos perfiles no tienen nombre publico cargado.
+    Promise.all([
+      fetch("https://api.github.com/user", {
+        headers: { Authorization: "Bearer " + sesion.token, Accept: "application/vnd.github+json" }
+      }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; }),
+      gh("/contents/herramientas/nombres.json?ref=" + RAMA, {
+        headers: { Accept: "application/vnd.github.raw" }
+      }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; })
+    ]).then(function (res) {
+      var u = res[0], tabla = (res[1] && res[1].nombres) || {};
+      if (!u) return;
+      sesion.nombre = (tabla[u.login] || tabla[u.email] || u.name || u.login || "")
+        .replace(/,/g, " ").trim();
     });
 
     var cuerpo = $("cuerpo");
@@ -1109,8 +1119,9 @@ window.__initPanel = function (DATOS) {
       'value="' + (l.usado == null ? "" : l.usado) + '">' +
       "<label>Registrado / copiado hasta (dd/mm/aaaa)</label>" +
       '<input id="e-reg" type="text" placeholder="dd/mm/aaaa" value="' + esc(l.ultimaReg) + '">' +
-      "<label>Lugar físico</label>" +
-      '<input id="e-lugar" type="text" value="' + esc(l.lugar) + '">' +
+      "<label>Lugar físico (custodia)</label>" +
+      opcionesLugar(l.lugar) +
+      '<input id="e-lugar-otro" type="text" placeholder="Nombre del lugar" hidden>' +
       "<label>Estado</label>" +
       '<select id="e-estado">' + ESTADOS.map(function (s) {
         return '<option' + (s === l.estado ? " selected" : "") + ">" + s + "</option>";
@@ -1124,8 +1135,56 @@ window.__initPanel = function (DATOS) {
       "</div></div>";
     document.body.appendChild(velo);
     velo.addEventListener("click", function (e) { if (e.target === velo) cerrar(); });
+    conectarLugar();
     $("e-cancelar").addEventListener("click", cerrar);
     $("e-revisar").addEventListener("click", function () { revisar(l); });
+  }
+
+  /* ---------- lugar fisico: seleccion, no texto libre ---------- */
+
+  // Las opciones son los lugares que ya existen en la base: elegir uno es un
+  // clic y no se crean duplicados por tipeo (MDO / mdo / M.D.O.). Un lugar
+  // nuevo se agrega a proposito con "Otro".
+  function lugaresExistentes() {
+    var vistos = {};
+    (window.__panel.libros || []).forEach(function (x) {
+      var v = (x.lugar || "").trim();
+      if (v) vistos[v] = true;
+    });
+    return Object.keys(vistos).sort(function (a, b) { return a.localeCompare(b, "es"); });
+  }
+
+  function opcionesLugar(actual) {
+    actual = (actual || "").trim();
+    var lista = lugaresExistentes();
+    var html = '<select id="e-lugar">';
+    html += '<option value=""' + (actual === "" ? " selected" : "") + ">— sin registrar —</option>";
+    lista.forEach(function (v) {
+      html += '<option value="' + esc(v) + '"' + (v === actual ? " selected" : "") + ">" + esc(v) + "</option>";
+    });
+    html += '<option value="__otro__">Otro (escribir)…</option>';
+    return html + "</select>";
+  }
+
+  function conectarLugar() {
+    var sel = $("e-lugar"), otro = $("e-lugar-otro");
+    if (!sel || !otro) return;
+    sel.addEventListener("change", function () {
+      otro.hidden = sel.value !== "__otro__";
+      if (!otro.hidden) otro.focus();
+    });
+  }
+
+  function lugarElegido() {
+    var sel = $("e-lugar"), otro = $("e-lugar-otro");
+    if (sel.value !== "__otro__") return sel.value;
+    var v = otro.value.trim();
+    // Si coincide con uno existente salvo mayusculas, se usa el existente:
+    // asi "mdo" no crea un lugar nuevo al lado de "MDO".
+    var igual = lugaresExistentes().filter(function (x) {
+      return x.toLowerCase() === v.toLowerCase();
+    })[0];
+    return igual || v;
   }
 
   function leerFormulario(l) {
@@ -1133,7 +1192,7 @@ window.__initPanel = function (DATOS) {
     return {
       usado: folioTxt === "" ? null : parseInt(folioTxt, 10),
       ultimaReg: $("e-reg").value.trim(),
-      lugar: $("e-lugar").value.trim(),
+      lugar: lugarElegido(),
       estado: $("e-estado").value,
       comentarios: $("e-coment").value.replace(/\r?\n/g, " ").trim()
     };
@@ -1152,6 +1211,8 @@ window.__initPanel = function (DATOS) {
     if (n.usado != null && l.total && n.usado > l.total)
       return "El folio (" + n.usado + ") no puede superar el total del libro (" + l.total + ").";
     if (!fechaValida(n.ultimaReg)) return "La fecha de registración tiene que ser dd/mm/aaaa y existir en el calendario.";
+    if ($("e-lugar").value === "__otro__" && n.lugar === "")
+      return "Elegiste \"Otro\" para el lugar físico: escribí cuál, o elegí uno de la lista.";
     if (ESTADOS.indexOf(n.estado) < 0) return "Estado inválido.";
     return null;
   }
