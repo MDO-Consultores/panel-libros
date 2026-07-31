@@ -343,10 +343,15 @@
   .custodia.mdo { background: #e4edf8; color: #24558c; }
   .custodia.cliente { background: #fdecea; color: #b03a35; }
 
-  :root[data-theme="dark"] .custodia.mdo,
-  :root:where(:not([data-theme="light"])) .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
-  :root[data-theme="dark"] .custodia.cliente,
-  :root:where(:not([data-theme="light"])) .custodia.cliente { background: #331e1d; color: #e79a95; }
+  :root[data-theme="dark"] .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
+  :root[data-theme="dark"] .custodia.cliente { background: #331e1d; color: #e79a95; }
+
+  /* Sin data-theme estampado (la app parada sola), la variante oscura solo vale
+     si el sistema realmente esta en oscuro. Fuera del @media, pisaba al claro. */
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
+    :root:where(:not([data-theme="light"])) .custodia.cliente { background: #331e1d; color: #e79a95; }
+  }
 
   /* ---------- medidor de uso ---------- */
 
