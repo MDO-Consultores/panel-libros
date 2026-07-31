@@ -341,16 +341,25 @@
   }
 
   .custodia.mdo { background: #e4edf8; color: #24558c; }
-  .custodia.cliente { background: #fdecea; color: #b03a35; }
+  .custodia.cliente { background: #eef1f3; color: #4a545e; }
+  .custodia.terceros { background: #faf0dc; color: #8a6414; }
+  .custodia.extraviado { background: #fdecea; color: #b03a35; }
+  .custodia.sindato { background: #f2f3f5; color: #8b939c; }
 
   :root[data-theme="dark"] .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
-  :root[data-theme="dark"] .custodia.cliente { background: #331e1d; color: #e79a95; }
+  :root[data-theme="dark"] .custodia.cliente { background: #262c32; color: #b6bfc8; }
+  :root[data-theme="dark"] .custodia.terceros { background: #2c2516; color: #d9b36b; }
+  :root[data-theme="dark"] .custodia.extraviado { background: #331e1d; color: #e79a95; }
+  :root[data-theme="dark"] .custodia.sindato { background: #22272c; color: #7b848d; }
 
   /* Sin data-theme estampado (la app parada sola), la variante oscura solo vale
      si el sistema realmente esta en oscuro. Fuera del @media, pisaba al claro. */
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
-    :root:where(:not([data-theme="light"])) .custodia.cliente { background: #331e1d; color: #e79a95; }
+    :root:where(:not([data-theme="light"])) .custodia.cliente { background: #262c32; color: #b6bfc8; }
+    :root:where(:not([data-theme="light"])) .custodia.terceros { background: #2c2516; color: #d9b36b; }
+    :root:where(:not([data-theme="light"])) .custodia.extraviado { background: #331e1d; color: #e79a95; }
+    :root:where(:not([data-theme="light"])) .custodia.sindato { background: #22272c; color: #7b848d; }
   }
 
   /* ---------- medidor de uso ---------- */
@@ -508,7 +517,13 @@ window.__initPanel = function (DATOS) {
     { v: R.criticos, r: "Críticos", n: "90% o más de uso", c: "c-naranja" },
     { v: R.sinDato, r: "Sin dato de folio", n: "no se puede evaluar el uso", c: "c-oliva" },
     { v: R.aRevisar, r: "A revisar", n: "con inconsistencias", c: "c-azul" },
-    { v: R.enMDO, r: "En MDO", n: "de " + R.enCliente + " en el cliente", c: "c-azul" }
+    // Solo las categorias que tienen libros: la nota queda corta y los numeros
+    // de custodia siempre cierran contra el total.
+    { v: R.enMDO, r: "En MDO", c: "c-azul", n: [
+        [R.enCliente, "en el cliente"], [R.enTerceros, "en terceros"],
+        [R.custodiaExtraviado, "extraviado"], [R.sinCustodia, "sin dato"]
+      ].filter(function (x) { return x[0]; })
+       .map(function (x) { return x[0] + " " + x[1]; }).join(" · ") }
   ].map(function (f) {
     return '<div class="ficha"><span class="cifra num ' + f.c + '">' + f.v + "</span>" +
       '<span class="rotulo">' + f.r + "</span>" +
@@ -666,9 +681,14 @@ window.__initPanel = function (DATOS) {
       '<span class="principal">' + (l.estado ? esc(l.estado) : '<span class="apagado">—</span>') +
       "</span>" + (l.ultimaReg ? '<span class="secundaria">al ' + esc(l.ultimaReg) + "</span>" : "");
 
-    var clase = l.custodiaTipo === "MDO" ? "mdo" : (l.custodiaTipo === "Cliente" ? "cliente" : "");
-    var custodia = '<span class="custodia ' + clase + '">' + esc(l.custodiaTipo) + "</span>" +
-      (l.lugar && l.lugar !== "MDO" ? '<span class="secundaria">' + esc(l.lugar) + "</span>" : "");
+    var clase = { "MDO": "mdo", "Cliente": "cliente", "Terceros": "terceros",
+                  "Extraviado": "extraviado", "Sin dato": "sindato" }[l.custodiaTipo] || "";
+    // "Cliente" ya dice todo lo que hace falta: quien lo tiene es el cliente de
+    // la fila. El detalle solo aporta en Terceros, donde importa cual es.
+    // El lugar exacto de cada libro sigue en la pestaña Custodia fisica.
+    var detalle = (l.custodiaTipo === "Terceros" && l.lugar)
+      ? '<span class="secundaria">' + esc(l.lugar) + "</span>" : "";
+    var custodia = '<span class="custodia ' + clase + '">' + esc(l.custodiaTipo) + "</span>" + detalle;
 
     var modif = l.modificadoPor
       ? '<span class="principal">' + esc(l.modificadoPor) + "</span>" +
@@ -936,6 +956,9 @@ window.__initPanel = function (DATOS) {
   // Columnas del CSV (0-index): 5 folio, 7 estado, 8 ultima registracion,
   // 9 lugar fisico, 10 modificado por, 11 fecha de modificacion, 12 comentarios.
   var UMBRAL_CRITICO = 90, UMBRAL_ATENCION = 75;
+  // Espejo de CUSTODIA_TERCEROS en generar_panel.py: si se agrega un tercero
+  // alla, agregarlo aca tambien (solo afecta el repintado inmediato).
+  var TERCEROS = ["ABOGADOS"];
 
   var sesion = null;   // {token, nombre}
   var puedeEscribir = false;
@@ -1350,7 +1373,10 @@ window.__initPanel = function (DATOS) {
         else { l.prioridad = "normal"; l.ordenPrioridad = 5; }
       } else { l.uso = null; l.prioridad = "sin_dato"; l.ordenPrioridad = 4; }
     }
-    l.custodiaTipo = !l.lugar ? "Sin dato" : (l.lugar.toUpperCase() === "MDO" ? "MDO" : "Cliente");
+    // Misma clasificacion que generar_panel.py (clasificar_custodia).
+    var v = l.lugar.toUpperCase();
+    l.custodiaTipo = !v ? "Sin dato" : v === "MDO" ? "MDO" : v === "EXTRAVIADO" ? "Extraviado"
+      : TERCEROS.indexOf(v) >= 0 ? "Terceros" : "Cliente";
     l.custodiaGrupo = !l.lugar ? "Sin lugar registrado" : (l.lugar.toUpperCase() === "MDO" ? "MDO" : l.lugar);
     l.extraviado = l.estado === "Extraviado" || /extraviado/i.test(l.comentarios + " " + l.lugar);
   }
