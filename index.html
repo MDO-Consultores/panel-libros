@@ -750,7 +750,7 @@ window.__initPanel = function (DATOS) {
 
   // URL del worker de Cloudflare que completa el login. Vacio = login todavia no
   // configurado (la app avisa en pantalla en vez de fallar en silencio).
-  var BACKEND = "";
+  var BACKEND = "https://panel-login.jmartinez-cf8.workers.dev";
 
   function irALogin() {
     try { sessionStorage.setItem("mdo-recien", "1"); } catch (e) { /* nada */ }
