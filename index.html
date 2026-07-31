@@ -1,0 +1,900 @@
+<title>Libros Societarios y Contables — MDO Consultores</title>
+
+<style>
+  :root {
+    color-scheme: light;
+    --page: #ffffff;
+    --surface: #ffffff;
+    --panel: #f7f8f9;
+    --ink: #1a1d21;
+    --ink-2: #5a636d;
+    --ink-3: #8b939c;
+    --hair: #e3e7ea;
+    --hair-soft: #eef1f3;
+    --navy: #1f3864;
+    --navy-ink: #1f3864;
+    --azul: #2a6fb0;
+    --rojo: #c62828;
+    --rojo-soft: #fdecea;
+    --naranja: #d97706;
+    --naranja-soft: #fdf3e3;
+    --oliva: #8a7415;
+    --verde: #1c7a44;
+    --verde-soft: #eaf6ee;
+    --verde-borde: #bfe0ca;
+    --track: #e8ebee;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0f1215;
+      --surface: #171b1f;
+      --panel: #1c2126;
+      --ink: #eef1f3;
+      --ink-2: #adb6bf;
+      --ink-3: #7b848d;
+      --hair: #2a3037;
+      --hair-soft: #22272c;
+      --navy: #23375c;
+      --navy-ink: #9dbde8;
+      --azul: #6ba3dd;
+      --rojo: #ef7b76;
+      --rojo-soft: #2e1a19;
+      --naranja: #e0a054;
+      --naranja-soft: #2c2216;
+      --oliva: #cbb44a;
+      --verde: #4fb07a;
+      --verde-soft: #15251c;
+      --verde-borde: #285039;
+      --track: #262c32;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0f1215;
+    --surface: #171b1f;
+    --panel: #1c2126;
+    --ink: #eef1f3;
+    --ink-2: #adb6bf;
+    --ink-3: #7b848d;
+    --hair: #2a3037;
+    --hair-soft: #22272c;
+    --navy: #23375c;
+    --navy-ink: #9dbde8;
+    --azul: #6ba3dd;
+    --rojo: #ef7b76;
+    --rojo-soft: #2e1a19;
+    --naranja: #e0a054;
+    --naranja-soft: #2c2216;
+    --oliva: #cbb44a;
+    --verde: #4fb07a;
+    --verde-soft: #15251c;
+    --verde-borde: #285039;
+    --track: #262c32;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 22px 24px 64px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* ---------- encabezado ---------- */
+
+  h1 {
+    margin: 0;
+    font-size: 23px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--navy-ink);
+  }
+
+  .subtitulo { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
+  .subtitulo b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- barra de estado ---------- */
+
+  .barra-estado {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    padding: 10px 14px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 7px;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+
+  .barra-estado .campo { display: inline-flex; align-items: baseline; gap: 7px; }
+
+  .barra-estado .rotulo {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .barra-estado b { color: var(--ink); font-weight: 650; }
+
+  /* ---------- franja de control ---------- */
+
+  .control {
+    padding: 10px 14px;
+    background: var(--verde-soft);
+    border: 1px solid var(--verde-borde);
+    border-radius: 7px;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+
+  .control b { color: var(--verde); font-weight: 680; }
+
+  /* ---------- fichas ---------- */
+
+  .fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(163px, 1fr));
+    gap: 11px;
+  }
+
+  .ficha {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 8px;
+    padding: 13px 15px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .ficha .cifra { font-size: 27px; font-weight: 700; line-height: 1.14; letter-spacing: -0.02em; }
+  .ficha .rotulo {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+  .ficha .nota { font-size: 11.5px; color: var(--ink-3); }
+
+  .c-navy { color: var(--navy-ink); }
+  .c-rojo { color: var(--rojo); }
+  .c-naranja { color: var(--naranja); }
+  .c-oliva { color: var(--oliva); }
+  .c-azul { color: var(--azul); }
+
+  /* ---------- pestañas ---------- */
+
+  .pestanas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px;
+    border-bottom: 1px solid var(--hair);
+    margin-top: 4px;
+  }
+
+  .pestanas button {
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 560;
+    color: var(--ink-2);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 9px 14px;
+    margin-bottom: -1px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .pestanas button:hover { color: var(--ink); }
+
+  .pestanas button[aria-selected="true"] {
+    color: var(--navy-ink);
+    font-weight: 680;
+    border-bottom-color: var(--navy-ink);
+  }
+
+  .pestanas .cuenta {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--rojo-soft);
+    color: var(--rojo);
+  }
+
+  .pestanas .cuenta.neutra { background: var(--hair-soft); color: var(--ink-2); }
+
+  /* ---------- filtros ---------- */
+
+  .filtros {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+    align-items: center;
+    padding: 4px 0 2px;
+  }
+
+  select, input[type="search"] {
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+    padding: 6px 9px;
+  }
+
+  input[type="search"] { flex: 1 1 230px; min-width: 0; max-width: 340px; }
+
+  .limpiar {
+    font: inherit;
+    font-size: 13px;
+    color: var(--ink-2);
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+
+  .limpiar:hover { background: var(--panel); color: var(--ink); }
+
+  :is(select, input, button):focus-visible { outline: 2px solid var(--azul); outline-offset: 1px; }
+
+  .conteo { margin-left: auto; font-size: 12.5px; color: var(--ink-3); }
+
+  /* ---------- tablas ---------- */
+
+  .tabla-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--hair);
+    border-radius: 7px;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  thead th {
+    background: var(--navy);
+    color: #ffffff;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 650;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 9px 12px;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  thead th.ordenable { cursor: pointer; user-select: none; }
+  thead th.ordenable:hover { background: color-mix(in srgb, var(--navy) 82%, #ffffff); }
+  thead th .flecha { opacity: 0.55; font-size: 9px; margin-left: 3px; }
+
+  tbody td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--hair-soft);
+    vertical-align: top;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--panel); }
+
+  td .principal { color: var(--ink); }
+  td .secundaria { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 1px; }
+  .derecha { text-align: right; }
+  .nowrap { white-space: nowrap; }
+  .apagado { color: var(--ink-3); }
+
+  /* ---------- pastillas ---------- */
+
+  .pastilla {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 650;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  .p-agotado, .p-extraviado { background: var(--rojo-soft); color: var(--rojo); }
+  .p-critico { background: var(--naranja-soft); color: var(--naranja); }
+  .p-atencion { background: var(--naranja-soft); color: var(--oliva); }
+  .p-sin_dato { background: var(--hair-soft); color: var(--ink-2); }
+  .p-normal { background: var(--verde-soft); color: var(--verde); }
+
+  .custodia {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 650;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: var(--hair-soft);
+    color: var(--ink-2);
+  }
+
+  .custodia.mdo { background: #e4edf8; color: #24558c; }
+  .custodia.cliente { background: #fdecea; color: #b03a35; }
+
+  :root[data-theme="dark"] .custodia.mdo,
+  :root:where(:not([data-theme="light"])) .custodia.mdo { background: #1b2b40; color: #8fb6e4; }
+  :root[data-theme="dark"] .custodia.cliente,
+  :root:where(:not([data-theme="light"])) .custodia.cliente { background: #331e1d; color: #e79a95; }
+
+  /* ---------- medidor de uso ---------- */
+
+  .uso { text-align: right; white-space: nowrap; }
+  .uso .cifra { font-weight: 640; }
+  .uso .barra {
+    display: block;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--track);
+    margin-top: 3px;
+    margin-left: auto;
+    width: 62px;
+    overflow: hidden;
+  }
+  .uso .barra i { display: block; height: 100%; border-radius: 2px; background: var(--verde); }
+  .uso .barra i.agotado, .uso .barra i.extraviado { background: var(--rojo); }
+  .uso .barra i.critico { background: var(--naranja); }
+  .uso .barra i.atencion { background: var(--oliva); }
+
+  .vacio { padding: 34px 16px; text-align: center; color: var(--ink-3); }
+
+  .grupo-cliente td {
+    background: var(--panel);
+    font-weight: 680;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--navy-ink);
+  }
+
+  footer {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    line-height: 1.65;
+    border-top: 1px solid var(--hair);
+    padding-top: 14px;
+    margin-top: 6px;
+  }
+
+  footer code { font-size: 11.5px; color: var(--ink-2); }
+
+  @media (max-width: 700px) {
+    .wrap { padding: 16px 12px 48px; }
+    .conteo { margin-left: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <h1>Libros Societarios y Contables</h1>
+    <p class="subtitulo">
+      MDO Consultores · datos de <b>Libros_Societarios_MDO.csv</b> en el repositorio
+      <b>mdo-libros-societarios</b>
+    </p>
+  </header>
+
+  <div class="barra-estado" id="barra-estado"></div>
+
+  <div class="control" id="control"></div>
+
+  <div class="fichas" id="fichas"></div>
+
+  <div class="pestanas" id="pestanas" role="tablist"></div>
+
+  <div class="filtros">
+    <select id="f-cliente" aria-label="Filtrar por cliente"></select>
+    <select id="f-tipo" aria-label="Filtrar por tipo de libro"></select>
+    <select id="f-prioridad" aria-label="Filtrar por prioridad"></select>
+    <select id="f-custodia" aria-label="Filtrar por custodia"></select>
+    <select id="f-editor" aria-label="Filtrar por quién lo modificó"></select>
+    <input type="search" id="buscar" placeholder="Buscar cliente, libro, rúbrica, lugar, comentario…" aria-label="Buscar">
+    <button type="button" class="limpiar" id="limpiar">Limpiar</button>
+    <span class="conteo" id="conteo"></span>
+  </div>
+
+  <div class="tabla-scroll">
+    <table id="tabla">
+      <thead><tr id="cabecera"></tr></thead>
+      <tbody id="cuerpo"></tbody>
+    </table>
+  </div>
+
+  <footer>
+    Los folios libres, el porcentaje de uso y la prioridad se calculan al generar este panel:
+    la base guarda solo datos relevados.
+    Para modificar un dato, abrí el repositorio en Claude Code y usá <code>/edicion-libros-mdo</code>.
+    El panel se regenera solo con cada cambio de la base.
+  </footer>
+
+</div>
+
+<script>
+// El panel se dibuja llamando a window.__initPanel(datos). Quien provee los datos
+// cambia segun la salida: panel.html los trae incrustados, app/index.html los baja
+// del repo con las credenciales del que mira. La vista es la misma para las dos.
+window.__initPanel = function (DATOS) {
+  "use strict";
+
+  var LIBROS = DATOS.libros;
+
+  var ETIQUETA_PRIORIDAD = {
+    extraviado: "Extraviado",
+    agotado: "Agotado",
+    critico: "Critico",
+    atencion: "Atencion",
+    sin_dato: "Sin dato",
+    normal: "En uso"
+  };
+
+  function esc(t) {
+    return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function guion(t) {
+    return (t && String(t).trim()) ? esc(t) : '<span class="apagado">—</span>';
+  }
+
+  var nf = new Intl.NumberFormat("es-AR");
+  function int(n) { return (n == null) ? "—" : nf.format(n); }
+  function pct(n) { return (n == null) ? "—" : nf.format(Math.round(n * 10) / 10) + "%"; }
+
+  function $(id) { return document.getElementById(id); }
+
+  /* ---------- barra de estado ---------- */
+
+  var ed = DATOS.edicion || {};
+  $("barra-estado").innerHTML = [
+    ['<span class="rotulo">Base actualizada</span><b>' + esc(ed.cuando || "—") + "</b>"],
+    ['<span class="rotulo">Última edición por</span><b>' + esc(ed.autor || "—") + "</b>"],
+    ['<span class="rotulo">Libros con modificación registrada</span><b>' +
+      DATOS.resumen.conModificacion + " de " + DATOS.resumen.libros + "</b>"],
+    ['<span class="rotulo">Panel generado</span><b>' + esc(DATOS.fecha) +
+      "</b> · commit <b>" + esc(DATOS.commit) + "</b>"]
+  ].map(function (c) { return '<span class="campo">' + c + "</span>"; }).join("");
+
+  $("control").innerHTML =
+    "<b>" + DATOS.resumen.libros + " libros leídos correctamente</b> · " +
+    DATOS.resumen.clientes + " clientes · control: los folios libres suman " +
+    int(DATOS.resumen.foliosLibres) + ".";
+
+  /* ---------- fichas ---------- */
+
+  var R = DATOS.resumen;
+  $("fichas").innerHTML = [
+    { v: R.libros, r: "Libros", n: "en " + R.clientes + " clientes", c: "c-navy" },
+    { v: R.aReponer, r: "A reponer", n: "agotados, críticos y en atención", c: "c-rojo" },
+    { v: R.agotados, r: "Agotados", n: "100% de folios usados", c: "c-rojo" },
+    { v: R.criticos, r: "Críticos", n: "90% o más de uso", c: "c-naranja" },
+    { v: R.sinDato, r: "Sin dato de folio", n: "no se puede evaluar el uso", c: "c-oliva" },
+    { v: R.aRevisar, r: "A revisar", n: "con inconsistencias", c: "c-azul" },
+    { v: R.enMDO, r: "En MDO", n: "de " + R.enCliente + " en el cliente", c: "c-azul" }
+  ].map(function (f) {
+    return '<div class="ficha"><span class="cifra num ' + f.c + '">' + f.v + "</span>" +
+      '<span class="rotulo">' + f.r + "</span>" +
+      '<span class="nota">' + f.n + "</span></div>";
+  }).join("");
+
+  /* ---------- pestañas ---------- */
+
+  var VISTAS = [
+    { id: "reposicion", label: "Reposición de folios",
+      filtro: function (l) { return ["agotado", "critico", "atencion"].indexOf(l.prioridad) >= 0; },
+      alarma: true },
+    { id: "revisar", label: "A revisar",
+      filtro: function (l) { return l.inconsistencias.length > 0 || l.extraviado; }, alarma: true },
+    { id: "custodia", label: "Custodia física", filtro: null, agrupar: "custodia" },
+    { id: "cliente", label: "Por cliente", filtro: null, agrupar: "cliente" },
+    { id: "todos", label: "Todos los libros", filtro: null }
+  ];
+
+  var vistaActual = "reposicion";
+
+  $("pestanas").innerHTML = VISTAS.map(function (v) {
+    var n = v.filtro ? LIBROS.filter(v.filtro).length : LIBROS.length;
+    var clase = v.alarma && n ? "cuenta" : "cuenta neutra";
+    return '<button type="button" role="tab" data-vista="' + v.id + '" aria-selected="' +
+      (v.id === vistaActual) + '">' + esc(v.label) +
+      '<span class="' + clase + '">' + n + "</span></button>";
+  }).join("");
+
+  $("pestanas").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-vista]");
+    if (!b) return;
+    vistaActual = b.dataset.vista;
+    orden = { col: "uso", desc: true };
+    Array.prototype.forEach.call($("pestanas").children, function (x) {
+      x.setAttribute("aria-selected", String(x.dataset.vista === vistaActual));
+    });
+    pintar();
+  });
+
+  /* ---------- filtros ---------- */
+
+  function opciones(sel, valores, todo) {
+    sel.innerHTML = '<option value="">' + todo + "</option>" +
+      valores.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + "</option>"; }).join("");
+  }
+
+  function unicos(campo) {
+    return Array.from(new Set(LIBROS.map(function (l) { return l[campo]; }).filter(Boolean))).sort();
+  }
+
+  opciones($("f-cliente"), unicos("cliente"), "Todos los clientes");
+  opciones($("f-tipo"), unicos("tipo"), "Todos los tipos");
+  opciones($("f-custodia"), unicos("lugar"), "Toda la custodia");
+
+  $("f-prioridad").innerHTML = '<option value="">Todas las prioridades</option>' +
+    Object.keys(ETIQUETA_PRIORIDAD).map(function (k) {
+      return '<option value="' + k + '">' + ETIQUETA_PRIORIDAD[k] + "</option>";
+    }).join("");
+
+  var editores = unicos("modificadoPor");
+  $("f-editor").innerHTML = '<option value="">Modificado por cualquiera</option>' +
+    editores.map(function (v) { return '<option value="' + esc(v) + '">' + esc(v) + "</option>"; }).join("") +
+    '<option value="__sin__">Sin registrar</option>';
+
+  var controles = ["f-cliente", "f-tipo", "f-prioridad", "f-custodia", "f-editor", "buscar"].map($);
+
+  controles.forEach(function (el) {
+    el.addEventListener(el.tagName === "SELECT" ? "change" : "input", pintar);
+  });
+
+  $("limpiar").addEventListener("click", function () {
+    controles.forEach(function (el) { el.value = ""; });
+    pintar();
+  });
+
+  /* ---------- orden ---------- */
+
+  var orden = { col: "uso", desc: true };
+
+  var COLUMNAS = [
+    { id: "prioridad", th: "Prioridad", ordenable: true },
+    { id: "cliente", th: "Cliente", ordenable: true },
+    { id: "libro", th: "Tipo de Libro", ordenable: true },
+    { id: "uso", th: "% Uso", ordenable: true, derecha: true },
+    { id: "folios", th: "Folios", ordenable: true, derecha: true },
+    { id: "estado", th: "Estado", ordenable: false },
+    { id: "custodia", th: "Custodia", ordenable: true },
+    { id: "modificacion", th: "Última modificación", ordenable: false }
+  ];
+
+  function valorOrden(l, col) {
+    switch (col) {
+      case "prioridad": return l.ordenPrioridad;
+      case "cliente": return l.cliente;
+      case "libro": return l.tipo + " " + String(l.nNum || 0).padStart(4, "0");
+      case "uso": return l.uso == null ? -1 : l.uso;
+      case "folios": return l.libres == null ? -1 : l.libres;
+      case "custodia": return l.lugar || "zzz";
+      default: return 0;
+    }
+  }
+
+  $("cabecera").innerHTML = COLUMNAS.map(function (c) {
+    var flecha = orden.col === c.id ? '<span class="flecha">' + (orden.desc ? "▼" : "▲") + "</span>" : "";
+    return "<th" + (c.ordenable ? ' class="ordenable" data-col="' + c.id + '"' : "") +
+      (c.derecha ? ' style="text-align:right"' : "") + ">" + c.th + flecha + "</th>";
+  }).join("");
+
+  $("cabecera").addEventListener("click", function (e) {
+    var th = e.target.closest("th[data-col]");
+    if (!th) return;
+    var col = th.dataset.col;
+    if (orden.col === col) orden.desc = !orden.desc;
+    else orden = { col: col, desc: col === "uso" };
+    pintar();
+  });
+
+  /* ---------- pintado ---------- */
+
+  function filtrados() {
+    var vista = VISTAS.filter(function (v) { return v.id === vistaActual; })[0];
+    var q = $("buscar").value.trim().toLowerCase();
+    var fc = $("f-cliente").value, ft = $("f-tipo").value;
+    var fp = $("f-prioridad").value, fu = $("f-custodia").value, fe = $("f-editor").value;
+
+    return LIBROS.filter(function (l) {
+      if (vista.filtro && !vista.filtro(l)) return false;
+      if (fc && l.cliente !== fc) return false;
+      if (ft && l.tipo !== ft) return false;
+      if (fp && l.prioridad !== fp) return false;
+      if (fu && l.lugar !== fu) return false;
+      if (fe === "__sin__" && l.modificadoPor) return false;
+      if (fe && fe !== "__sin__" && l.modificadoPor !== fe) return false;
+      if (!q) return true;
+      return [l.cliente, l.tipo, l.n, l.rubrica, l.lugar, l.estado, l.comentarios, l.modificadoPor]
+        .join(" ").toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function filaLibro(l, conCliente) {
+    var usoTxt = l.uso == null
+      ? '<span class="apagado">—</span>'
+      : '<span class="cifra num">' + pct(l.uso) + "</span>" +
+        '<span class="barra"><i class="' + l.prioridad + '" style="width:' +
+        Math.max(l.uso, 2) + '%"></i></span>';
+
+    var folios = (l.usado == null && !l.total)
+      ? '<span class="apagado">—</span>'
+      : '<span class="principal num">' + (l.usado == null ? "—" : int(l.usado)) + " / " +
+        (l.total == null ? "—" : int(l.total)) + "</span>" +
+        '<span class="secundaria num">' + (l.libres == null ? "sin dato" : int(l.libres) + " libres") + "</span>";
+
+    var estado = (l.extraviado ? '<span class="pastilla p-extraviado">Extraviado</span> ' : "") +
+      '<span class="principal">' + (l.estado ? esc(l.estado) : '<span class="apagado">—</span>') +
+      "</span>" + (l.ultimaReg ? '<span class="secundaria">al ' + esc(l.ultimaReg) + "</span>" : "");
+
+    var clase = l.custodiaTipo === "MDO" ? "mdo" : (l.custodiaTipo === "Cliente" ? "cliente" : "");
+    var custodia = '<span class="custodia ' + clase + '">' + esc(l.custodiaTipo) + "</span>" +
+      (l.lugar && l.lugar !== "MDO" ? '<span class="secundaria">' + esc(l.lugar) + "</span>" : "");
+
+    var modif = l.modificadoPor
+      ? '<span class="principal">' + esc(l.modificadoPor) + "</span>" +
+        (l.fechaModificacion ? '<span class="secundaria">' + esc(l.fechaModificacion) + "</span>" : "")
+      : '<span class="apagado">sin registrar</span>';
+
+    return "<tr>" +
+      '<td><span class="pastilla p-' + l.prioridad + '">' + ETIQUETA_PRIORIDAD[l.prioridad] + "</span></td>" +
+      "<td>" + (conCliente ? esc(l.cliente) : '<span class="apagado">·</span>') + "</td>" +
+      '<td><span class="principal">' + esc(l.tipo) + " N°" + esc(l.n) + "</span>" +
+        (l.rubrica ? '<span class="secundaria">rúbrica ' + esc(l.rubrica) + "</span>" : "") + "</td>" +
+      '<td class="uso">' + usoTxt + "</td>" +
+      '<td class="derecha nowrap">' + folios + "</td>" +
+      "<td>" + estado + "</td>" +
+      "<td>" + custodia + "</td>" +
+      "<td>" + modif + "</td>" +
+      "</tr>";
+  }
+
+  function pintar() {
+    var vista = VISTAS.filter(function (v) { return v.id === vistaActual; })[0];
+    var lista = filtrados().slice();
+
+    lista.sort(function (a, b) {
+      var va = valorOrden(a, orden.col), vb = valorOrden(b, orden.col);
+      var r = (typeof va === "string") ? va.localeCompare(vb) : (va - vb);
+      if (r === 0) r = a.cliente.localeCompare(b.cliente) || (a.nNum || 0) - (b.nNum || 0);
+      return orden.desc ? -r : r;
+    });
+
+    // Encabezado con la flecha del orden vigente.
+    $("cabecera").innerHTML = COLUMNAS.map(function (c) {
+      var flecha = orden.col === c.id ? '<span class="flecha">' + (orden.desc ? "▼" : "▲") + "</span>" : "";
+      return "<th" + (c.ordenable ? ' class="ordenable" data-col="' + c.id + '"' : "") +
+        (c.derecha ? ' style="text-align:right"' : "") + ">" + c.th + flecha + "</th>";
+    }).join("");
+
+    var cuerpo = $("cuerpo");
+
+    if (!lista.length) {
+      cuerpo.innerHTML = '<tr><td colspan="8" class="vacio">Ningún libro coincide con estos filtros.</td></tr>';
+      $("conteo").textContent = "0 de " + LIBROS.length + " libros";
+      return;
+    }
+
+    var html = "";
+    if (vista.agrupar) {
+      var campo = vista.agrupar === "custodia" ? "custodiaGrupo" : "cliente";
+      var grupos = {};
+      lista.forEach(function (l) { (grupos[l[campo]] = grupos[l[campo]] || []).push(l); });
+      Object.keys(grupos).sort().forEach(function (g) {
+        html += '<tr class="grupo-cliente"><td colspan="8">' + esc(g) +
+          " — " + grupos[g].length + (grupos[g].length === 1 ? " libro" : " libros") + "</td></tr>";
+        grupos[g].forEach(function (l) { html += filaLibro(l, vista.agrupar !== "cliente"); });
+      });
+    } else {
+      lista.forEach(function (l) { html += filaLibro(l, true); });
+    }
+
+    cuerpo.innerHTML = html;
+    $("conteo").textContent = lista.length + " de " + LIBROS.length + " libros";
+  }
+
+  pintar();
+};
+</script>
+
+<script>
+// Cargador de la app publicada con login de GitHub. Se inyecta en app/worker.js.
+//
+// El usuario aprieta "Entrar con GitHub", se loguea con su cuenta de siempre y el
+// panel carga. El worker (/login y /callback) completa el intercambio OAuth y
+// devuelve el token del usuario en el fragmento de la URL; aca se guarda y se usa
+// para bajar panel.json del repo. Quien no tiene acceso al repo recibe un 404 de
+// GitHub y no ve nada: el permiso lo controla GitHub, no esta pagina.
+(function () {
+  "use strict";
+
+  var OWNER = "MDO-Consultores";
+  var REPO = "mdo-libros-societarios";
+  var ARCHIVO = "panel.json";
+  var RAMA = "main";
+  var CLAVE = "mdo-libros-sesion";
+
+  // URL del worker de Cloudflare que completa el login. Vacio = login todavia no
+  // configurado (la app avisa en pantalla en vez de fallar en silencio).
+  var BACKEND = "";
+
+  function irALogin() {
+    try { sessionStorage.setItem("mdo-recien", "1"); } catch (e) { /* nada */ }
+    var aca = location.origin + location.pathname.replace(/index\.html$/, "");
+    location.href = BACKEND + "/login?from=" + encodeURIComponent(aca);
+  }
+
+  var capa = document.createElement("div");
+  capa.id = "capa-acceso";
+  document.body.appendChild(capa);
+
+  var estilo = document.createElement("style");
+  estilo.textContent = [
+    "#capa-acceso{position:fixed;inset:0;z-index:50;display:flex;align-items:center;",
+    "justify-content:center;padding:24px;background:var(--page)}",
+    "#capa-acceso .caja{width:100%;max-width:440px;background:var(--surface);",
+    "border:1px solid var(--hair);border-radius:10px;padding:30px 30px 26px;text-align:center}",
+    "#capa-acceso h2{margin:0 0 6px;font-size:20px;color:var(--navy-ink)}",
+    "#capa-acceso p{margin:0 0 18px;font-size:13.5px;color:var(--ink-2);line-height:1.6}",
+    "#capa-acceso .error{font-size:12.5px;color:var(--rojo);margin:0 0 14px;line-height:1.55}",
+    "#capa-acceso button{font:inherit;font-size:14.5px;font-weight:650;color:#fff;",
+    "background:var(--navy-ink);border:none;border-radius:7px;padding:11px 26px;cursor:pointer}",
+    "#capa-acceso button:hover{opacity:.9}",
+    "#capa-acceso .cargando{font-size:13.5px;color:var(--ink-2)}",
+    "#barra-app{display:flex;flex-wrap:wrap;gap:9px;align-items:center;justify-content:flex-end;",
+    "margin:-4px 0 -6px;font-size:12.5px;color:var(--ink-3)}",
+    "#barra-app button{font:inherit;font-size:12.5px;color:var(--ink-2);background:var(--surface);",
+    "border:1px solid var(--hair);border-radius:6px;padding:5px 11px;cursor:pointer}",
+    "#barra-app button:hover{background:var(--panel);color:var(--ink)}"
+  ].join("");
+  document.head.appendChild(estilo);
+
+  var panel = document.querySelector(".wrap");
+  panel.hidden = true;
+
+  function esc(t) {
+    return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function guardar(t) { try { localStorage.setItem(CLAVE, t); } catch (e) { /* modo privado */ } }
+  function olvidar() { try { localStorage.removeItem(CLAVE); } catch (e) { /* nada */ } }
+  function recienLogueado() {
+    try { return sessionStorage.getItem("mdo-recien") === "1"; } catch (e) { return false; }
+  }
+
+  function pantallaEntrar(error) {
+    if (!BACKEND || BACKEND.indexOf("__") === 0) {
+      error = "El ingreso todavia no esta configurado (falta conectar el login). " +
+              "Avisale al administrador.";
+    }
+    capa.innerHTML =
+      '<div class="caja">' +
+      "<h2>Libros Societarios y Contables</h2>" +
+      "<p>MDO Consultores. Entra con tu usuario de GitHub de la organizacion.</p>" +
+      (error ? '<p class="error">' + esc(error) + "</p>" : "") +
+      '<button type="button" id="entrar">Entrar con GitHub</button>' +
+      "</div>";
+    document.getElementById("entrar").addEventListener("click", irALogin);
+  }
+
+  function cargando() {
+    capa.innerHTML = '<div class="caja"><p class="cargando">Leyendo la base del repositorio…</p></div>';
+  }
+
+  function cargar(token) {
+    cargando();
+
+    var url = "https://api.github.com/repos/" + OWNER + "/" + REPO +
+      "/contents/" + ARCHIVO + "?ref=" + RAMA;
+
+    fetch(url, {
+      headers: {
+        Authorization: "Bearer " + token,
+        Accept: "application/vnd.github.raw",
+        "X-GitHub-Api-Version": "2022-11-28"
+      },
+      cache: "no-store"
+    }).then(function (r) {
+      if (r.status === 401) throw new Error("__vencido__");
+      if (r.status === 403 || r.status === 404) throw new Error("__acceso__");
+      if (!r.ok) throw new Error("GitHub respondio " + r.status + ".");
+      return r.text();
+    }).then(function (texto) {
+      try { sessionStorage.removeItem("mdo-recien"); } catch (e) { /* nada */ }
+      mostrar(JSON.parse(texto));
+    }).catch(function (e) {
+      if (e.message === "__vencido__") {
+        olvidar();
+        // La sesion vencio: si el login recien fallo no insistimos (evita el loop);
+        // si no, GitHub re-autoriza solo y el usuario apenas ve una redireccion.
+        if (recienLogueado()) {
+          pantallaEntrar("No se pudo completar el ingreso. Proba de nuevo.");
+        } else {
+          irALogin();
+        }
+      } else if (e.message === "__acceso__") {
+        olvidar();
+        pantallaEntrar("Tu usuario no tiene acceso de lectura al repositorio " + REPO + ". " +
+                       "Pedile al administrador que te lo de y volve a entrar.");
+      } else {
+        capa.innerHTML = '<div class="caja"><h2>No se pudo cargar el panel</h2>' +
+          '<p class="error">' + esc(e.message) + "</p>" +
+          '<button type="button" onclick="location.reload()">Reintentar</button></div>';
+      }
+    });
+  }
+
+  function mostrar(datos) {
+    capa.remove();
+    panel.hidden = false;
+
+    var barra = document.createElement("div");
+    barra.id = "barra-app";
+    barra.innerHTML =
+      "<span>Datos leidos del repositorio al abrir esta pagina.</span>" +
+      '<button type="button" id="app-recargar">Actualizar</button>' +
+      '<button type="button" id="app-salir">Salir</button>';
+    panel.insertBefore(barra, panel.querySelector(".barra-estado"));
+
+    document.getElementById("app-recargar").addEventListener("click", function () {
+      location.reload();
+    });
+    document.getElementById("app-salir").addEventListener("click", function () {
+      olvidar();
+      location.reload();
+    });
+
+    window.__initPanel(datos);
+  }
+
+  // El token llega del worker en el fragmento (#t=...): el fragmento nunca viaja
+  // al servidor, y aca se borra de la barra y del historial apenas se guarda.
+  var m = /(?:^#|&)t=([^&]+)/.exec(location.hash);
+  if (m) {
+    guardar(decodeURIComponent(m[1]));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
+  var token = null;
+  try { token = localStorage.getItem(CLAVE); } catch (e) { /* nada */ }
+
+  if (token) cargar(token);
+  else pantallaEntrar(null);
+})();
+</script>
