@@ -675,7 +675,7 @@ window.__initPanel = function (DATOS) {
         (l.fechaModificacion ? '<span class="secundaria">' + esc(l.fechaModificacion) + "</span>" : "")
       : '<span class="apagado">sin registrar</span>';
 
-    return "<tr>" +
+    return '<tr data-k="' + esc(l.cliente + "" + l.tipo + "" + l.n + "" + l.rubrica) + '">' +
       '<td><span class="pastilla p-' + l.prioridad + '">' + ETIQUETA_PRIORIDAD[l.prioridad] + "</span></td>" +
       "<td>" + (conCliente ? esc(l.cliente) : '<span class="apagado">·</span>') + "</td>" +
       '<td><span class="principal">' + esc(l.tipo) + " N°" + esc(l.n) + "</span>" +
@@ -733,6 +733,10 @@ window.__initPanel = function (DATOS) {
   }
 
   pintar();
+
+  // Ganchos para la edicion en la app: repintar tras un cambio y acceso a los
+  // libros en memoria. En las salidas sin edicion no los usa nadie.
+  window.__panel = { repintar: pintar, libros: LIBROS };
 };
 </script>
 
@@ -842,7 +846,7 @@ window.__initPanel = function (DATOS) {
       return r.text();
     }).then(function (texto) {
       try { sessionStorage.removeItem("mdo-recien"); } catch (e) { /* nada */ }
-      mostrar(JSON.parse(texto));
+      mostrar(JSON.parse(texto), token);
     }).catch(function (e) {
       if (e.message === "__vencido__") {
         olvidar();
@@ -865,7 +869,7 @@ window.__initPanel = function (DATOS) {
     });
   }
 
-  function mostrar(datos) {
+  function mostrar(datos, token) {
     capa.remove();
     panel.hidden = false;
 
@@ -886,6 +890,10 @@ window.__initPanel = function (DATOS) {
     });
 
     window.__initPanel(datos);
+
+    // Aviso para la edicion rapida (editor.js): sesion disponible y panel pintado.
+    window.__mdoSesion = { token: token, nombre: "" };
+    window.dispatchEvent(new Event("mdo-panel-listo"));
   }
 
   // El token llega del worker en el fragmento (#t=...): el fragmento nunca viaja
@@ -901,5 +909,393 @@ window.__initPanel = function (DATOS) {
 
   if (token) cargar(token);
   else pantallaEntrar(null);
+})();
+</script>
+<script>
+// Edicion rapida desde la app publicada. Se inyecta en app/publico/index.html
+// despues del cargador OAuth.
+//
+// Permite tocar los campos frecuentes de un libro (folio, ultima registracion,
+// lugar fisico, estado, comentarios) y graba el cambio como UN COMMIT en el repo
+// hecho con el token del usuario logueado: la auditoria es el historial de git,
+// igual que editando por chat. GitHub aplica los permisos: quien tiene solo
+// lectura no ve el lapiz (y si lo intentara igual, la API lo rechaza).
+//
+// Todo lo demas (altas, correcciones historicas, cambios masivos) sigue por chat.
+(function () {
+  "use strict";
+
+  var OWNER = "MDO-Consultores";
+  var REPO = "mdo-libros-societarios";
+  var RAMA = "main";
+  var CSV = "Libros_Societarios_MDO.csv";
+  var API = "https://api.github.com/repos/" + OWNER + "/" + REPO;
+
+  var ESTADOS = ["Al corriente", "Completo", "Vacio", "A copiar", "Falta firma",
+                 "Incompleto", "Extraviado", "Enviado a cliente"];
+  // Columnas del CSV (0-index): 5 folio, 7 estado, 8 ultima registracion,
+  // 9 lugar fisico, 10 modificado por, 11 fecha de modificacion, 12 comentarios.
+  var UMBRAL_CRITICO = 90, UMBRAL_ATENCION = 75;
+
+  var sesion = null;   // {token, nombre}
+  var puedeEscribir = false;
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(t) {
+    return String(t == null ? "" : t).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+
+  function gh(ruta, opciones) {
+    opciones = opciones || {};
+    opciones.headers = Object.assign({
+      Authorization: "Bearer " + sesion.token,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28"
+    }, opciones.headers || {});
+    opciones.cache = "no-store";
+    return fetch(API + ruta, opciones);
+  }
+
+  /* ---------- CSV: partir en registros y campos respetando comillas ---------- */
+
+  function partirRegistros(texto) {
+    var regs = [], actual = "", dentro = false;
+    for (var i = 0; i < texto.length; i++) {
+      var c = texto[i];
+      if (c === '"') dentro = !dentro;
+      if (!dentro && (c === "\n" || c === "\r")) {
+        if (c === "\r" && texto[i + 1] === "\n") i++;
+        regs.push(actual);
+        actual = "";
+      } else {
+        actual += c;
+      }
+    }
+    if (actual !== "") regs.push(actual);
+    return regs;
+  }
+
+  function partirCampos(registro) {
+    var campos = [], actual = "", dentro = false;
+    for (var i = 0; i < registro.length; i++) {
+      var c = registro[i];
+      if (dentro) {
+        if (c === '"') {
+          if (registro[i + 1] === '"') { actual += '"'; i++; }
+          else dentro = false;
+        } else actual += c;
+      } else if (c === '"') {
+        dentro = true;
+      } else if (c === ",") {
+        campos.push(actual); actual = "";
+      } else {
+        actual += c;
+      }
+    }
+    campos.push(actual);
+    return campos;
+  }
+
+  function campoCsv(valor) {
+    valor = String(valor == null ? "" : valor);
+    if (/[",\n\r]/.test(valor)) return '"' + valor.replace(/"/g, '""') + '"';
+    return valor;
+  }
+
+  /* ---------- estilos ---------- */
+
+  var estilo = document.createElement("style");
+  estilo.textContent = [
+    "td .editar-libro{visibility:hidden;font:inherit;font-size:12px;border:1px solid var(--hair);",
+    "background:var(--surface);color:var(--ink-2);border-radius:5px;padding:1px 7px;cursor:pointer;margin-left:8px}",
+    "tr:hover .editar-libro{visibility:visible}",
+    ".editar-libro:hover{color:var(--ink);background:var(--panel)}",
+    "#velo-editor{position:fixed;inset:0;z-index:80;background:rgba(15,18,21,.45);display:flex;",
+    "align-items:center;justify-content:center;padding:20px}",
+    "#velo-editor .caja{width:100%;max-width:460px;max-height:92vh;overflow-y:auto;background:var(--surface);",
+    "border:1px solid var(--hair);border-radius:10px;padding:22px 24px 20px}",
+    "#velo-editor h2{margin:0 0 2px;font-size:16px;color:var(--navy-ink)}",
+    "#velo-editor .sub{margin:0 0 16px;font-size:12.5px;color:var(--ink-3)}",
+    "#velo-editor label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;",
+    "text-transform:uppercase;color:var(--ink-2);margin:11px 0 3px}",
+    "#velo-editor input,#velo-editor select,#velo-editor textarea{width:100%;font:inherit;font-size:13.5px;",
+    "color:var(--ink);background:var(--page);border:1px solid var(--hair);border-radius:6px;padding:7px 10px}",
+    "#velo-editor textarea{resize:vertical;min-height:52px}",
+    "#velo-editor .error{font-size:12.5px;color:var(--rojo);margin:10px 0 0;line-height:1.5}",
+    "#velo-editor .aviso{font-size:12.5px;color:var(--naranja);margin:10px 0 0;line-height:1.5}",
+    "#velo-editor .acciones{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}",
+    "#velo-editor button{font:inherit;font-size:13.5px;border-radius:6px;padding:8px 16px;cursor:pointer}",
+    "#velo-editor .primario{font-weight:650;color:#fff;background:var(--navy-ink);border:none}",
+    "#velo-editor .secundario{color:var(--ink-2);background:var(--surface);border:1px solid var(--hair)}",
+    "#velo-editor .resumen{font-size:13px;line-height:1.7;margin:8px 0 0}",
+    "#velo-editor .resumen b{color:var(--verde)}",
+    "#velo-editor .tachado{color:var(--ink-3);text-decoration:line-through}",
+    "#velo-editor .ok{font-size:13.5px;color:var(--verde);margin:12px 0 0;line-height:1.6}"
+  ].join("");
+  document.head.appendChild(estilo);
+
+  /* ---------- deteccion de sesion y permiso ---------- */
+
+  function arrancar() {
+    if (!window.__mdoSesion || !window.__panel) return;
+    sesion = window.__mdoSesion;
+    gh("").then(function (r) { return r.ok ? r.json() : null; }).then(function (repo) {
+      puedeEscribir = !!(repo && repo.permissions && repo.permissions.push);
+      if (puedeEscribir) ponerLapices();
+    });
+    // nombre del usuario para "Modificado por"
+    fetch("https://api.github.com/user", {
+      headers: { Authorization: "Bearer " + sesion.token,
+                 Accept: "application/vnd.github+json" }
+    }).then(function (r) { return r.ok ? r.json() : null; }).then(function (u) {
+      if (u) sesion.nombre = (u.name || u.login || "").replace(/,/g, " ").trim();
+    });
+
+    var cuerpo = $("cuerpo");
+    if (!cuerpo) return;
+    new MutationObserver(ponerLapices).observe(cuerpo, { childList: true });
+    ponerLapices();
+    cuerpo.addEventListener("click", function (e) {
+      var b = e.target.closest(".editar-libro");
+      if (!b) return;
+      var tr = b.closest("tr[data-k]");
+      if (tr) abrirEditor(tr.dataset.k);
+    });
+  }
+
+  function ponerLapices() {
+    if (!puedeEscribir) return;
+    var filas = document.querySelectorAll('#cuerpo tr[data-k]');
+    filas.forEach(function (tr) {
+      if (tr.querySelector(".editar-libro")) return;
+      var celda = tr.cells[2];
+      if (!celda) return;
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "editar-libro"; b.textContent = "✎ editar";
+      celda.appendChild(b);
+    });
+  }
+
+  function buscarLibro(k) {
+    var p = k.split("");
+    return (window.__panel.libros || []).filter(function (l) {
+      return l.cliente === p[0] && l.tipo === p[1] && String(l.n) === p[2] && l.rubrica === p[3];
+    })[0] || null;
+  }
+
+  /* ---------- editor ---------- */
+
+  var velo = null;
+
+  function cerrar() { if (velo) { velo.remove(); velo = null; } }
+
+  function abrirEditor(k) {
+    var l = buscarLibro(k);
+    if (!l) return;
+    cerrar();
+    velo = document.createElement("div");
+    velo.id = "velo-editor";
+    velo.innerHTML =
+      '<div class="caja">' +
+      "<h2>" + esc(l.cliente) + "</h2>" +
+      '<p class="sub">' + esc(l.tipo) + " N°" + esc(l.n) +
+      (l.rubrica ? " · rúbrica " + esc(l.rubrica) : "") +
+      (l.total ? " · " + l.total + " folios" : "") + "</p>" +
+      '<label>Último folio utilizado</label>' +
+      '<input id="e-folio" type="number" min="0" ' + (l.total ? 'max="' + l.total + '" ' : "") +
+      'value="' + (l.usado == null ? "" : l.usado) + '">' +
+      "<label>Registrado / copiado hasta (dd/mm/aaaa)</label>" +
+      '<input id="e-reg" type="text" placeholder="dd/mm/aaaa" value="' + esc(l.ultimaReg) + '">' +
+      "<label>Lugar físico</label>" +
+      '<input id="e-lugar" type="text" value="' + esc(l.lugar) + '">' +
+      "<label>Estado</label>" +
+      '<select id="e-estado">' + ESTADOS.map(function (s) {
+        return '<option' + (s === l.estado ? " selected" : "") + ">" + s + "</option>";
+      }).join("") + "</select>" +
+      "<label>Comentarios</label>" +
+      '<textarea id="e-coment">' + esc(l.comentarios) + "</textarea>" +
+      '<div id="e-error"></div>' +
+      '<div class="acciones">' +
+      '<button type="button" class="secundario" id="e-cancelar">Cancelar</button>' +
+      '<button type="button" class="primario" id="e-revisar">Revisar cambio</button>' +
+      "</div></div>";
+    document.body.appendChild(velo);
+    velo.addEventListener("click", function (e) { if (e.target === velo) cerrar(); });
+    $("e-cancelar").addEventListener("click", cerrar);
+    $("e-revisar").addEventListener("click", function () { revisar(l); });
+  }
+
+  function leerFormulario(l) {
+    var folioTxt = $("e-folio").value.trim();
+    return {
+      usado: folioTxt === "" ? null : parseInt(folioTxt, 10),
+      ultimaReg: $("e-reg").value.trim(),
+      lugar: $("e-lugar").value.trim(),
+      estado: $("e-estado").value,
+      comentarios: $("e-coment").value.replace(/\r?\n/g, " ").trim()
+    };
+  }
+
+  function fechaValida(t) {
+    if (t === "") return true;
+    var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);
+    if (!m) return false;
+    var d = new Date(+m[3], +m[2] - 1, +m[1]);
+    return d.getFullYear() === +m[3] && d.getMonth() === +m[2] - 1 && d.getDate() === +m[1];
+  }
+
+  function validar(l, n) {
+    if (n.usado != null && (isNaN(n.usado) || n.usado < 0)) return "El folio tiene que ser un entero positivo.";
+    if (n.usado != null && l.total && n.usado > l.total)
+      return "El folio (" + n.usado + ") no puede superar el total del libro (" + l.total + ").";
+    if (!fechaValida(n.ultimaReg)) return "La fecha de registración tiene que ser dd/mm/aaaa y existir en el calendario.";
+    if (ESTADOS.indexOf(n.estado) < 0) return "Estado inválido.";
+    return null;
+  }
+
+  function cambios(l, n) {
+    var lista = [];
+    if (n.usado !== l.usado && !(n.usado == null && l.usado == null))
+      lista.push(["Último folio", l.usado == null ? "—" : l.usado, n.usado == null ? "—" : n.usado]);
+    if (n.ultimaReg !== l.ultimaReg) lista.push(["Registrado hasta", l.ultimaReg || "—", n.ultimaReg || "—"]);
+    if (n.lugar !== l.lugar) lista.push(["Lugar físico", l.lugar || "—", n.lugar || "—"]);
+    if (n.estado !== l.estado) lista.push(["Estado", l.estado || "—", n.estado]);
+    if (n.comentarios !== l.comentarios) lista.push(["Comentarios", l.comentarios || "—", n.comentarios || "—"]);
+    return lista;
+  }
+
+  function revisar(l) {
+    var n = leerFormulario(l);
+    var error = validar(l, n);
+    var caja = velo.querySelector(".caja");
+    if (error) { $("e-error").innerHTML = '<p class="error">' + esc(error) + "</p>"; return; }
+    var lista = cambios(l, n);
+    if (!lista.length) { $("e-error").innerHTML = '<p class="error">No cambiaste nada.</p>'; return; }
+
+    var retrocede = n.usado != null && l.usado != null && n.usado < l.usado;
+    caja.innerHTML =
+      "<h2>Confirmar el cambio</h2>" +
+      '<p class="sub">' + esc(l.cliente) + " · " + esc(l.tipo) + " N°" + esc(l.n) + "</p>" +
+      '<div class="resumen">' + lista.map(function (c) {
+        return esc(c[0]) + ': <span class="tachado">' + esc(String(c[1])) + "</span> → <b>" +
+               esc(String(c[2])) + "</b>";
+      }).join("<br>") + "</div>" +
+      (retrocede ? '<p class="aviso">⚠ El folio retrocede de ' + l.usado + " a " + n.usado +
+        ". Los folios solo avanzan: confirmá únicamente si es la corrección de un dato mal cargado.</p>" : "") +
+      '<div id="e-error"></div>' +
+      '<div class="acciones">' +
+      '<button type="button" class="secundario" id="e-volver">Volver</button>' +
+      '<button type="button" class="primario" id="e-guardar">Guardar en la base</button>' +
+      "</div>";
+    $("e-volver").addEventListener("click", function () { abrirEditor([l.cliente, l.tipo, l.n, l.rubrica].join("")); });
+    $("e-guardar").addEventListener("click", function () { guardar(l, n, lista, 0); });
+  }
+
+  function guardar(l, n, lista, reintento) {
+    var boton = $("e-guardar");
+    boton.disabled = true; boton.textContent = "Guardando…";
+    $("e-error").innerHTML = "";
+
+    gh("/contents/" + CSV + "?ref=" + RAMA).then(function (r) {
+      if (!r.ok) throw new Error("No pude leer la base (HTTP " + r.status + ").");
+      return r.json();
+    }).then(function (archivo) {
+      var binario = atob(archivo.content.replace(/\n/g, ""));
+      var bytes = new Uint8Array(binario.length);
+      for (var i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+      // ignoreBOM: sin esto el decoder se traga el BOM y la deteccion de abajo
+      // nunca lo ve, con lo que el archivo guardado lo perderia.
+      var texto = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
+      var conBom = texto.charCodeAt(0) === 0xFEFF;
+      if (conBom) texto = texto.slice(1);
+
+      var registros = partirRegistros(texto);
+      var indice = -1;
+      for (var j = 1; j < registros.length; j++) {
+        if (registros[j].trim() === "") continue;
+        var c = partirCampos(registros[j]);
+        if (c[0] === l.cliente && c[1] === l.tipo && c[2] === String(l.n) && (c[3] || "") === l.rubrica) {
+          indice = j; break;
+        }
+      }
+      if (indice < 0) throw new Error("No encontré la fila del libro en la base. Puede que otro la haya cambiado: recargá la página.");
+
+      var campos = partirCampos(registros[indice]);
+      campos[5] = n.usado == null ? "" : String(n.usado);
+      campos[7] = n.estado;
+      campos[8] = n.ultimaReg;
+      campos[9] = n.lugar;
+      campos[10] = sesion.nombre || "";
+      var hoy = new Date();
+      campos[11] = ("0" + hoy.getDate()).slice(-2) + "/" + ("0" + (hoy.getMonth() + 1)).slice(-2) + "/" + hoy.getFullYear();
+      campos[12] = n.comentarios;
+      registros[indice] = campos.map(campoCsv).join(",");
+
+      var nuevo = (conBom ? "﻿" : "") + registros.join("\n") + "\n";
+      var codificado = new TextEncoder().encode(nuevo);
+      var b64 = "";
+      for (var k2 = 0; k2 < codificado.length; k2 += 0x8000)
+        b64 += String.fromCharCode.apply(null, codificado.subarray(k2, k2 + 0x8000));
+      b64 = btoa(b64);
+
+      var detalle = lista.map(function (c) { return c[0] + " " + c[1] + " -> " + c[2]; }).join("; ");
+      return gh("/contents/" + CSV, {
+        method: "PUT",
+        body: JSON.stringify({
+          message: l.cliente + ": " + l.tipo + " " + l.n + " — " + detalle + "\n\nEditado desde el panel por " + (sesion.nombre || "usuario del panel") + ".",
+          content: b64,
+          sha: archivo.sha,
+          branch: RAMA
+        })
+      });
+    }).then(function (r) {
+      if (r.status === 409 && reintento < 1) { guardar(l, n, lista, reintento + 1); return null; }
+      if (r.status === 403 || r.status === 404) throw new Error("GitHub rechazó la escritura: tu usuario no tiene permiso de edición sobre la base.");
+      if (!r.ok) throw new Error("GitHub respondió " + r.status + " al guardar.");
+      return r.json();
+    }).then(function (resultado) {
+      if (!resultado) return;
+      aplicarEnMemoria(l, n);
+      var caja = velo.querySelector(".caja");
+      caja.innerHTML = "<h2>Guardado ✓</h2>" +
+        '<p class="ok">El cambio quedó grabado en la base como un commit tuyo. ' +
+        "El panel ya muestra el dato nuevo; los indicadores generales se recalculan solos en un minuto.</p>" +
+        '<div class="acciones"><button type="button" class="primario" id="e-cerrar">Listo</button></div>';
+      $("e-cerrar").addEventListener("click", cerrar);
+      window.__panel.repintar();
+    }).catch(function (e) {
+      boton.disabled = false; boton.textContent = "Guardar en la base";
+      $("e-error").innerHTML = '<p class="error">' + esc(e.message) + "</p>";
+    });
+  }
+
+  function aplicarEnMemoria(l, n) {
+    l.usado = n.usado; l.ultimaReg = n.ultimaReg; l.lugar = n.lugar;
+    l.estado = n.estado; l.comentarios = n.comentarios;
+    l.modificadoPor = sesion.nombre || l.modificadoPor;
+    var hoy = new Date();
+    l.fechaModificacion = ("0" + hoy.getDate()).slice(-2) + "/" + ("0" + (hoy.getMonth() + 1)).slice(-2) + "/" + hoy.getFullYear();
+    if (l.total) {
+      l.libres = Math.max(l.total - (l.usado || 0), 0);
+      if (l.usado != null) {
+        var e = Math.min(l.usado / l.total, 1) * 100;
+        l.uso = Math.round(e);
+        if (e >= 100) { l.prioridad = "agotado"; l.ordenPrioridad = 1; }
+        else if (e >= UMBRAL_CRITICO) { l.prioridad = "critico"; l.ordenPrioridad = 2; }
+        else if (e >= UMBRAL_ATENCION) { l.prioridad = "atencion"; l.ordenPrioridad = 3; }
+        else { l.prioridad = "normal"; l.ordenPrioridad = 5; }
+      } else { l.uso = null; l.prioridad = "sin_dato"; l.ordenPrioridad = 4; }
+    }
+    l.custodiaTipo = !l.lugar ? "Sin dato" : (l.lugar.toUpperCase() === "MDO" ? "MDO" : "Cliente");
+    l.custodiaGrupo = !l.lugar ? "Sin lugar registrado" : (l.lugar.toUpperCase() === "MDO" ? "MDO" : l.lugar);
+    l.extraviado = l.estado === "Extraviado" || /extraviado/i.test(l.comentarios + " " + l.lugar);
+  }
+
+  // El cargador OAuth avisa cuando el panel esta en pantalla.
+  if (window.__mdoSesion && window.__panel) arrancar();
+  else window.addEventListener("mdo-panel-listo", arrancar);
 })();
 </script>
