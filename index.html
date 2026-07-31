@@ -577,7 +577,23 @@ window.__initPanel = function (DATOS) {
 
   opciones($("f-cliente"), unicos("cliente"), "Todos los clientes");
   opciones($("f-tipo"), unicos("tipo"), "Todos los tipos");
-  opciones($("f-custodia"), unicos("lugar"), "Toda la custodia");
+  // Custodia en dos niveles: primero el tipo (MDO, Cliente, Terceros…), despues
+  // el lugar concreto. Los valores van prefijados para no confundir "Cliente" el
+  // tipo con un lugar que se llame igual.
+  (function () {
+    var TIPOS = ["MDO", "Cliente", "Terceros", "Extraviado", "Sin dato"];
+    var cuenta = {};
+    LIBROS.forEach(function (l) { cuenta[l.custodiaTipo] = (cuenta[l.custodiaTipo] || 0) + 1; });
+    var html = '<option value="">Toda la custodia</option>';
+    html += '<optgroup label="Por tipo">' + TIPOS.filter(function (t) { return cuenta[t]; })
+      .map(function (t) {
+        return '<option value="t:' + esc(t) + '">' + esc(t) + " (" + cuenta[t] + ")</option>";
+      }).join("") + "</optgroup>";
+    html += '<optgroup label="Por lugar">' + unicos("lugar").map(function (v) {
+      return '<option value="l:' + esc(v) + '">' + esc(v) + "</option>";
+    }).join("") + "</optgroup>";
+    $("f-custodia").innerHTML = html;
+  })();
 
   $("f-prioridad").innerHTML = '<option value="">Todas las prioridades</option>' +
     Object.keys(ETIQUETA_PRIORIDAD).map(function (k) {
@@ -655,7 +671,10 @@ window.__initPanel = function (DATOS) {
       if (fc && l.cliente !== fc) return false;
       if (ft && l.tipo !== ft) return false;
       if (fp && l.prioridad !== fp) return false;
-      if (fu && l.lugar !== fu) return false;
+      if (fu) {
+        if (fu.slice(0, 2) === "t:") { if (l.custodiaTipo !== fu.slice(2)) return false; }
+        else if (l.lugar !== fu.slice(2)) return false;
+      }
       if (fe === "__sin__" && l.modificadoPor) return false;
       if (fe && fe !== "__sin__" && l.modificadoPor !== fe) return false;
       if (!q) return true;
