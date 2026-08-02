@@ -1184,26 +1184,41 @@ window.__initPanel = function (DATOS) {
 
   /* ---------- lugar fisico: seleccion, no texto libre ---------- */
 
-  // Las opciones son los lugares que ya existen en la base: elegir uno es un
-  // clic y no se crean duplicados por tipeo (MDO / mdo / M.D.O.). Un lugar
-  // nuevo se agrega a proposito con "Otro".
+  // Etiquetas canonicas de custodia. El lugar responde "quien lo tiene", no una
+  // direccion: por eso son estas y no la lista de nombres de clientes que dejo
+  // la planilla vieja. "Otro" queda para un tercero o un domicilio concreto.
+  var LUGARES = [
+    ["MDO", "MDO — en el estudio"],
+    ["CLIENTE", "CLIENTE — lo tiene el cliente"],
+    ["ABOGADOS", "ABOGADOS — en el estudio jurídico"],
+    ["EXTRAVIADO", "EXTRAVIADO — no se encuentra"]
+  ];
+
   function lugaresExistentes() {
     var vistos = {};
+    LUGARES.forEach(function (p) { vistos[p[0]] = true; });
     (window.__panel.libros || []).forEach(function (x) {
       var v = (x.lugar || "").trim();
       if (v) vistos[v] = true;
     });
-    return Object.keys(vistos).sort(function (a, b) { return a.localeCompare(b, "es"); });
+    return Object.keys(vistos);
   }
 
   function opcionesLugar(actual) {
     actual = (actual || "").trim();
-    var lista = lugaresExistentes();
+    var canonico = LUGARES.some(function (p) { return p[0] === actual; });
     var html = '<select id="e-lugar">';
     html += '<option value=""' + (actual === "" ? " selected" : "") + ">— sin registrar —</option>";
-    lista.forEach(function (v) {
-      html += '<option value="' + esc(v) + '"' + (v === actual ? " selected" : "") + ">" + esc(v) + "</option>";
+    LUGARES.forEach(function (p) {
+      html += '<option value="' + esc(p[0]) + '"' + (p[0] === actual ? " selected" : "") +
+              ">" + esc(p[1]) + "</option>";
     });
+    // Un valor heredado de la planilla vieja ("Teleologo 2/4/26") se ofrece tal
+    // cual y preseleccionado: guardar sin tocar este campo no lo pisa.
+    if (actual && !canonico) {
+      html += '<option value="' + esc(actual) + '" selected>' + esc(actual) +
+              " (valor actual, sin normalizar)</option>";
+    }
     html += '<option value="__otro__">Otro (escribir)…</option>';
     return html + "</select>";
   }
